@@ -1,10 +1,11 @@
-from firebase_functions import https_fn
+from firebase_functions import firestore_fn
 from firebase_functions.options import set_global_options
-from firebase_admin import initialize_app
+from firebase_admin import initialize_app, firestore
 
 set_global_options(max_instances=2)
 
 initialize_app()
+db = firestore.client()
 
 ACCEPTED = "accepted"
 PENDING = "pending"

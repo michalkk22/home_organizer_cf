@@ -5,14 +5,17 @@ from firebase_admin import initialize_app, firestore
 set_global_options(max_instances=2)
 
 initialize_app()
-db = firestore.client()
 
 ACCEPTED = "accepted"
 PENDING = "pending"
 FAILED = "failed"
 
+def get_db():
+    return firestore.client()
+
 @firestore_fn.on_document_updated(document="invitations/{inviteId}")
 def on_invite_used(event: firestore_fn.Event):
+    db = get_db()
     before = event.data.before.to_dict()
     after = event.data.after.to_dict()
 

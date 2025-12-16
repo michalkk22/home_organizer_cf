@@ -6,6 +6,10 @@ set_global_options(max_instances=2)
 
 initialize_app()
 
+ACCEPTED = "accepted"
+PENDING = "pending"
+FAILED = "failed"
+
 @firestore_fn.on_document_updated(document="invitations/{inviteId}")
 def on_invite_used(event: firestore_fn.Event):
     before = event.data.before.to_dict()
@@ -18,14 +22,32 @@ def on_invite_used(event: firestore_fn.Event):
 
     uid = list(new_users)[0]
     home_id = after["homeId"]
+    inv_ref = event.data.reference
 
-    # add user to group
-    db.collection("homes").document(home_id).update({
-        "members": firestore.ArrayUnion([uid])
-    })
+    try:
+        # update status to pending
+        inv_ref.update({
+            f"status.{uid}": PENDING
+        })
 
-    # create permissions doc
-    db.collection("homes").document(home_id) \
-      .collection("permissions").document(uid).set({
-        "isOwner": False,
-    })
+        # add user to group
+        db.collection("homes").document(home_id).update({
+            "members": firestore.ArrayUnion([uid])
+        })
+
+        # create permissions doc
+        db.collection("homes").document(home_id) \
+        .collection("permissions").document(uid).set({
+            "isOwner": False,
+        })
+
+        # update status to accepted
+        inv_ref.update({
+            f"status.{uid}": ACCEPTED
+        })
+
+    except Exception as e:
+        inv_ref.update({
+            f"status.{uid}": FAILED,
+            f"errors.{uid}": str(e),
+        })

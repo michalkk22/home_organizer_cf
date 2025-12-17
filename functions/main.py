@@ -13,6 +13,35 @@ FAILED = "failed"
 def get_db():
     return firestore.client()
 
+@firestore_fn.on_document_created(document="homes/{homeId}")
+def on_home_created(event: firestore_fn.Event):
+    db = get_db()
+    home = event.data.to_dict()
+    uid = list(home["members"])[0]
+    home_ref = event.data.reference
+    batch = db.batch()
+
+    # give user owner permissions
+    batch.set(
+        home_ref.collection("permissions").document(uid),
+        {"isOwner": True}
+    )
+    
+    # copy dafault categories
+    categories = home_ref.collection("expenditureCategories")
+    defaults = db.collection("defaultExpenditureCategories")
+
+    defaults_docs = defaults.stream()
+
+    for doc in defaults_docs:
+        batch.set(
+            categories.document(doc.id),
+            doc.to_dict()
+        )
+
+    batch.commit()
+    
+
 @firestore_fn.on_document_updated(document="invitations/{inviteId}")
 def on_invite_used(event: firestore_fn.Event):
     db = get_db()
@@ -26,7 +55,7 @@ def on_invite_used(event: firestore_fn.Event):
 
     uid = list(new_users)[0]
     home_id = after["homeId"]
-    inv_ref = event.data.reference
+    inv_ref = event.data.after.reference
 
     try:
         # update status to pending
